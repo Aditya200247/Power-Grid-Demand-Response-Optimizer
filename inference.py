@@ -1,7 +1,11 @@
 import os
 import requests
 import json
+import warnings
 from openai import OpenAI
+
+# Suppress SSL warnings for HF Spaces self-signed certificates
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Environment setup
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
@@ -17,7 +21,7 @@ def run_task(client, task_id):
     print(f"[START] task={task_id} env={BENCHMARK} model={MODEL_NAME}", flush=True)
 
     # 1. Reset Environment
-    reset_response = requests.post(f"{ENV_URL}/reset", json={"task_id": task_id})
+    reset_response = requests.post(f"{ENV_URL}/reset", json={"task_id": task_id}, verify=False)
     reset_response.raise_for_status()
     obs = reset_response.json()
 
@@ -74,7 +78,7 @@ def run_task(client, task_id):
 
         # 2. Step Environment
         try:
-            step_response = requests.post(f"{ENV_URL}/step", json=action_dict)
+            step_response = requests.post(f"{ENV_URL}/step", json=action_dict, verify=False)
             step_response.raise_for_status()
             data = step_response.json()
             

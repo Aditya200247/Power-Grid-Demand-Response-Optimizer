@@ -59,6 +59,21 @@ if ! REPO_DIR="$(cd "$REPO_DIR" 2>/dev/null && pwd)"; then
   exit 1
 fi
 PING_URL="${PING_URL%/}"
+
+# Auto-convert HF web URLs to the direct HF Space API endpoint format
+# Example: https://huggingface.co/spaces/user/my_space -> https://user-my-space.hf.space
+if [[ "$PING_URL" == https://huggingface.co/spaces/* ]]; then
+  temp="${PING_URL#https://huggingface.co/spaces/}"
+  USERNAME="${temp%%/*}"
+  SPACENAME="${temp#*/}"
+  # Replace underscores and dots with hyphens for the direct domain standard
+  HF_USER="${USERNAME//_/-}"
+  HF_USER="${HF_USER//./-}"
+  HF_SPACE="${SPACENAME//_/-}"
+  HF_SPACE="${HF_SPACE//./-}"
+  PING_URL="https://${HF_USER}-${HF_SPACE}.hf.space"
+fi
+
 export PING_URL
 PASS=0
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from server.models import TaskDifficulty, PowerGridAction, PowerGridObservation, StepResponse
 from server.environment import PowerGridEnv
@@ -21,11 +21,15 @@ def read_root():
     return {"status": "ok", "environment": "Power Grid Demand-Response Optimizer"}
 
 @app.post("/reset", response_model=PowerGridObservation)
-def reset(request: ResetRequest = Body(default=ResetRequest())):
+def reset(task_id: Optional[str] = None):
     """Initializes the episode and returns the initial observation."""
     try:
-        task_id = request.task_id if request else TaskDifficulty.EASY
-        obs = env.reset(task_id)
+        # Default to EASY if no task_id provided
+        if task_id is None:
+            task_id_enum = TaskDifficulty.EASY
+        else:
+            task_id_enum = TaskDifficulty(task_id)
+        obs = env.reset(task_id_enum)
         return obs
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

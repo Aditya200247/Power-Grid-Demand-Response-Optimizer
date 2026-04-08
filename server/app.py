@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from models import TaskDifficulty, PowerGridAction, PowerGridObservation, StepResponse
-from environment import PowerGridEnv
+from server.models import TaskDifficulty, PowerGridAction, PowerGridObservation, StepResponse
+from server.environment import PowerGridEnv
 import uvicorn
 
 app = FastAPI(title="Power Grid Demand-Response Optimizer")
@@ -11,8 +11,10 @@ app = FastAPI(title="Power Grid Demand-Response Optimizer")
 # For this hackathon, we assume 1 worker = 1 agent.
 env = PowerGridEnv()
 
+from typing import Optional
+
 class ResetRequest(BaseModel):
-    task_id: TaskDifficulty
+    task_id: Optional[TaskDifficulty] = TaskDifficulty.EASY
 
 @app.get("/")
 def read_root():
@@ -42,5 +44,8 @@ def state():
     """Returns the current metadata and state of the environment."""
     return env.state()
 
+def main():
+    uvicorn.run("server.app:app", host="0.0.0.0", port=8000, reload=False)
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    main()

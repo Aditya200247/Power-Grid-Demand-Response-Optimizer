@@ -3,10 +3,7 @@ import os
 import random
 import numpy as np
 
-# Ensure we can import from the parent directory
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from models import TaskDifficulty, LoadZone, PowerGridObservation, PowerGridAction, StepResponse
+from server.models import TaskDifficulty, LoadZone, PowerGridObservation, PowerGridAction, StepResponse
 
 class PowerGridEnv:
     def __init__(self):

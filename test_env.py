@@ -6,8 +6,8 @@ import numpy as np
 # Ensure we can import from the parent directory
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from models import TaskDifficulty, LoadZone, PowerGridAction
-from environment import PowerGridEnv
+from server.environment import PowerGridEnv
+from server.models import TaskDifficulty, PowerGridAction, LoadZone
 
 class TestPowerGridEnv(unittest.TestCase):
     def setUp(self):

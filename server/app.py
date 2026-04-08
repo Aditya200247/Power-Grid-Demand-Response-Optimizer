@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 from server.models import TaskDifficulty, PowerGridAction, PowerGridObservation, StepResponse
 from server.environment import PowerGridEnv
 import uvicorn
+from typing import Optional
 
 app = FastAPI(title="Power Grid Demand-Response Optimizer")
 
@@ -10,8 +11,6 @@ app = FastAPI(title="Power Grid Demand-Response Optimizer")
 # In a robust multi-tenant setup, we'd use session IDs.
 # For this hackathon, we assume 1 worker = 1 agent.
 env = PowerGridEnv()
-
-from typing import Optional
 
 class ResetRequest(BaseModel):
     task_id: Optional[TaskDifficulty] = TaskDifficulty.EASY
@@ -22,7 +21,7 @@ def read_root():
     return {"status": "ok", "environment": "Power Grid Demand-Response Optimizer"}
 
 @app.post("/reset", response_model=PowerGridObservation)
-def reset(request: Optional[ResetRequest] = None):
+def reset(request: ResetRequest = Body(default=ResetRequest())):
     """Initializes the episode and returns the initial observation."""
     try:
         task_id = request.task_id if request else TaskDifficulty.EASY

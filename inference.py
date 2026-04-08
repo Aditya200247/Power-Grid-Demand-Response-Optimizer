@@ -15,15 +15,16 @@ SUCCESS_SCORE_THRESHOLD = 0.5  # Passing score
 
 def run_task(client, task_id):
     print(f"[START] task={task_id} env={BENCHMARK} model={MODEL_NAME}", flush=True)
-    
+
     # 1. Reset Environment
     reset_response = requests.post(f"{ENV_URL}/reset", json={"task_id": task_id})
     reset_response.raise_for_status()
     obs = reset_response.json()
-    
+
     done = False
     step_count = 0
     rewards = []
+    max_steps = 24  # Standard 24-hour episode
     
     system_prompt = (
         "You are a Power Grid AI Manager. Maintain the grid frequency close to 50.0Hz. "
@@ -91,17 +92,15 @@ def run_task(client, task_id):
         
         print(f"[STEP] step={step_count} action={action_str} reward={reward:.2f} done={done_str} error={err_str}", flush=True)
         
-    # Check final state for score
-    try:
-        state_response = requests.get(f"{ENV_URL}/state")
-        final_score = state_response.json().get("score", 0.0)
-    except:
-        final_score = 0.0
-        
+    # Calculate final score from rewards (normalized to [0, 1])
+    # Max possible score: 1.0 per step for maintaining 50Hz frequency
+    final_score = sum(rewards) / max_steps if max_steps > 0 else 0.0
+    final_score = max(0.0, min(1.0, final_score))  # Clamp to [0, 1]
+
     success = final_score >= SUCCESS_SCORE_THRESHOLD
     success_str = str(success).lower()
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    
+
     print(f"[END] success={success_str} steps={step_count} score={final_score:.3f} rewards={rewards_str}", flush=True)
 
 if __name__ == "__main__":

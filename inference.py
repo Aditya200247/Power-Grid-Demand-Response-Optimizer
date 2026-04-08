@@ -64,6 +64,7 @@ def run_task(client, task_id):
             action_dict = json.loads(action_text)
             
         except Exception as e:
+            print(f"⚠️ LLM Call Failed: {e}. Using fallback action.")
             # Fallback for LLM failure to keep environment moving
             action_dict = fallback_action
             
@@ -83,9 +84,9 @@ def run_task(client, task_id):
         
     # Check final state for score
     state_response = requests.get(f"{ENV_URL}/state")
-    final_score = state_response.json().get("cumulative_reward", 0.0)
+    final_score = state_response.json().get("score", 0.0)
     
-    print(f"[END] Task {task_id} completed. Cumulative Reward Component: {final_score:.4f}")
+    print(f"[END] Task {task_id} completed. Score: {final_score:.4f}")
 
 if __name__ == "__main__":
     if not HF_TOKEN:

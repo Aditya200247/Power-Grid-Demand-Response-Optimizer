@@ -222,5 +222,6 @@ class PowerGridEnv:
             "max_steps": self.max_steps,
             "task_id": self.task_id.value if self.task_id else None,
             "agent_alive": not (self.current_frequency < 49.0 or self.current_frequency > 51.0),
-            "cumulative_reward": float(self.cumulative_reward)
+            "cumulative_reward": float(self.cumulative_reward),
+            "score": float(self._calculate_final_score())
         }

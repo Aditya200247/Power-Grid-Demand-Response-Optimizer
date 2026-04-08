@@ -22,10 +22,11 @@ def read_root():
     return {"status": "ok", "environment": "Power Grid Demand-Response Optimizer"}
 
 @app.post("/reset", response_model=PowerGridObservation)
-def reset(request: ResetRequest):
+def reset(request: Optional[ResetRequest] = None):
     """Initializes the episode and returns the initial observation."""
     try:
-        obs = env.reset(request.task_id)
+        task_id = request.task_id if request else TaskDifficulty.EASY
+        obs = env.reset(task_id)
         return obs
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

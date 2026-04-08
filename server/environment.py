@@ -3,10 +3,7 @@ import os
 import random
 import numpy as np
 
-# Ensure we can import from the parent directory
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from models import TaskDifficulty, LoadZone, PowerGridObservation, PowerGridAction, StepResponse
+from server.models import TaskDifficulty, LoadZone, PowerGridObservation, PowerGridAction, StepResponse
 
 class PowerGridEnv:
     def __init__(self):
@@ -83,7 +80,6 @@ class PowerGridEnv:
         self.solar_arr, self.demand_arr, self.price_arr, battery_soc = self._generate_scenario(task_id)
         
         self.battery_current_energy = self.battery_max_capacity_kwh * battery_soc
-            
         return self._get_obs()
 
     def _get_obs(self) -> PowerGridObservation:
@@ -120,19 +116,25 @@ class PowerGridEnv:
         wind_supply = obs.forecast_wind_kw[0]
         diesel_supply = action.diesel_activation * self.diesel_max_output_kw
         
+        # Battery Physics: 
+        # battery_flow > 0 means charging (consumes power)
+        # battery_flow < 0 means discharging (supplies power)
         requested_battery_kw = action.battery_flow * self.battery_max_flow_kw
         
         actual_battery_kw = 0.0
-        if requested_battery_kw > 0.0:
+        if requested_battery_kw > 0.0: # Agent wants to charge
             space_left = self.battery_max_capacity_kwh - self.battery_current_energy
             actual_battery_kw = min(requested_battery_kw, space_left)
             self.battery_current_energy += actual_battery_kw
-        elif requested_battery_kw < 0.0:
+        elif requested_battery_kw < 0.0: # Agent wants to discharge
             energy_available = self.battery_current_energy
             actual_battery_kw = max(requested_battery_kw, -energy_available)
             self.battery_current_energy += actual_battery_kw
             
+        # If battery flow is negative, it's adding to supply
         battery_supply_kw = -actual_battery_kw
+
+        # Grid trade: > 0 buying (supply), < 0 selling (demand)
         grid_trade_kw = action.grid_trade * self.grid_trade_max_kw
         
         total_supply = solar_supply + wind_supply + diesel_supply + battery_supply_kw + grid_trade_kw
@@ -146,15 +148,37 @@ class PowerGridEnv:
 
         # 3. Frequency Physics
         net_power = total_supply - demand
-        frequency_delta = (net_power / 2000.0) * 0.5 
+        frequency_delta = (net_power / 2000.0) * 0.5  # Mapping delta kW to delta Hz
         self.current_frequency += frequency_delta
+        
+        # Grid natural inertia slowly pulls frequency towards 50.0 if not out of bounds
         self.current_frequency += (50.0 - self.current_frequency) * 0.1
         
-        # 4. Step Rewards
+        # 4. Phase 4 Reward Function Implemention
+        # R_t = w1*e^(-k|df|) - w2*C_t - w3*E_t + S_t
         frequency_error = abs(self.current_frequency - 50.0)
-        reward = 1.0 - (frequency_error / 1.0)
         
-        step_reward = reward
+        w1, k = 1.0, 1.0
+        w2, w3 = 0.001, 0.005 # cost and emission penalties
+        
+        # Frequency bonus
+        r_freq = w1 * np.exp(-k * frequency_error)
+        
+        # Cost penalty: Diesel operation + Buying from grid
+        cost_t = 0.0
+        if diesel_supply > 0:
+            cost_t += diesel_supply * 0.30 # expensive diesel fuel
+        if grid_trade_kw > 0:
+            cost_t += grid_trade_kw * obs.spot_price_dollars
+        
+        # Emissions penalty: Diesel is highly polluting
+        emissions_t = diesel_supply * 0.5 # proxy for tons of CO2
+        
+        # Survival bonus: If still alive
+        survival_bonus = 0.1 if (49.0 <= self.current_frequency <= 51.0) else 0.0
+        
+        step_reward = r_freq - (w2 * cost_t) - (w3 * emissions_t) + survival_bonus
+        
         self.cumulative_reward += step_reward
         
         # 5. Check Terminal Conditions
@@ -166,6 +190,8 @@ class PowerGridEnv:
         
         if self.current_frequency < 49.0 or self.current_frequency > 51.0:
             done = True
+            # Major penalty for collapse
+            step_reward -= 5.0
             
         new_obs = self._get_obs()
         
@@ -177,12 +203,13 @@ class PowerGridEnv:
         return StepResponse(observation=new_obs, reward=step_reward, done=done, info=final_info)
 
     def _calculate_final_score(self):
-        # Temporary bounds based on Phase 3 needs. Will refine in Phase 4
-        r_max = float(self.max_steps) * 1.0 
-        r_min = 0.0 
+        # Graceful normalization between 0.0 and 1.0 (Phase 3 Grader)
+        # Empirical min/max bounds based on episodic behavior
+        max_possible_reward = self.max_steps * (1.0 + 0.1) # perfect freq + survival
+        min_possible_reward = -5.0 # blackout
         
-        raw_score = (self.cumulative_reward - r_min) / (r_max - r_min)
-        final_score = max(0.0, min(1.0, float(raw_score))) # Ensure basic python float
+        raw_score = (self.cumulative_reward - min_possible_reward) / (max_possible_reward - min_possible_reward)
+        final_score = max(0.0, min(1.0, float(raw_score))) # Ensure within [0.0, 1.0] bound
         
         return final_score
 
@@ -192,5 +219,6 @@ class PowerGridEnv:
             "max_steps": self.max_steps,
             "task_id": self.task_id.value if self.task_id else None,
             "agent_alive": not (self.current_frequency < 49.0 or self.current_frequency > 51.0),
-            "cumulative_reward": self.cumulative_reward
+            "cumulative_reward": float(self.cumulative_reward),
+            "score": float(self._calculate_final_score())
         }

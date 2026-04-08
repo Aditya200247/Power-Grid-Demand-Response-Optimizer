@@ -1,0 +1,16 @@
+name: "Power Grid Demand-Response Optimizer"
+description: "Manage a mixed-source electrical grid. Balance demand, pricing, constraints, and frequency stability."
+version: 1.0.0
+
+api:
+  reset: "/reset"
+  step: "/step"
+  state: "/state"
+
+tasks:
+  - id: "easy"
+    description: "The Sunny Day: Predictable solar and demand curve."
+  - id: "medium"
+    description: "Intermittent Clouds: Randomly dropping solar arrays and volatile pricing."
+  - id: "hard"
+    description: "The Storm Surge: No renewables, demand surge, battery extremely constrained."

@@ -54,7 +54,7 @@ pip install requests openai
 export ENV_URL="https://1nscisiv1nstigator-power_grid_opt_final.hf.space"
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
-export HF_TOKEN="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"
+export HF_TOKEN="YOUR_HF_TOKEN"
 
 # 4. Run inference
 python inference.py
